@@ -1,0 +1,161 @@
+.main-header {
+    display: inline-flex;
+    margin-bottom: 10px;
+    margin: 10px;
+}
+.header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.tagline {
+    font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: #334155;
+    font-style: normal;
+}
+h1 {
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+h2 {
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 200;
+  letter-spacing: -0.5px;
+  color: #0f172a;
+  margin-bottom: 8px;
+  justify-content: center;
+}
+
+.create-table {
+    display: flex;
+    flex-direction: row;
+    justify-self: center;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+
+    gap: 10px;
+}
+.create-table button {
+    transition: transform 0.3s ease;
+}
+.create-table button:hover {
+    transform: scale(1.05);
+}
+
+/* Styles for generated table and controls */
+#table-area {
+  max-width: 960px;
+  margin: 20px auto;
+  padding: 10px;
+}
+
+.vehicle-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  margin-bottom: 24px;
+  padding: 20px;
+}
+
+.vehicle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.vehicle-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+#createTableBtn,
+.table-controls button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.deleteTableBtn {
+  background: #ef4444;
+}
+
+.table-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.partsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.partsTable th,
+.partsTable td {
+  border: 1px solid #e2e8f0;
+  padding: 12px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.partsTable th {
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+}
+
+.partsTable input,
+.partsTable select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.mileage-cell {
+  display: flex;
+  gap: 8px;
+}
+
+.mileage-cell input {
+  flex: 1 1 0;
+}
+
+.mileage-cell select {
+  flex: 0 0 110px;
+}
+
+.deleteRow {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#addRowBtn {
+  background: #10b981;
+}

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Parts</title>
+    <link rel="stylesheet" href="viewparts.css">
+</head>
+<body>
+    <div class = "main-header">
+        <img src="images&shits/trackmyparts.png" alt="Logo" width="60">
+
+    </div>
+        <hr>
+    <div class = "my_garage">
+        <h1>My Garage</h1>
+    </div>
+    <div class = "create-table">
+        <div class = "create_table">
+                <button id="createTableBtn">Create table for a vehicle</button>
+        </div>
+    
+        <div class = "back">
+            <a href="index.html"><button>Back to main page</button></a>
+        </div>
+    
+    </div>
+
+
+
+    <div id="table-area"></div>
+
+        <script>
+        const STORAGE_KEY = 'consumablesTables';
+
+        function saveTables() {
+            const tableCards = document.querySelectorAll('.vehicle-card');
+            const data = Array.from(tableCards).map(card => {
+                const name = card.querySelector('.vehicle-title').textContent;
+                const rows = Array.from(card.querySelectorAll('tbody tr')).map(tr => ({
+                    partName: tr.querySelector('[name="partName"]').value,
+                    price: tr.querySelector('[name="price"]').value,
+                    quantity: tr.querySelector('[name="quantity"]').value,
+                    dateInstalled: tr.querySelector('[name="dateInstalled"]').value,
+                    mileage: tr.querySelector('[name="mileage"]').value,
+                    mileageUnit: tr.querySelector('[name="mileageUnit"]').value,
+                    critical: tr.querySelector('[name="critical"]').value,
+                }));
+                return { name, rows };
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function createRow(tbody, rowData = {}) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" name="partName" placeholder="Part name" value="${rowData.partName || ''}"></td>
+                <td><input type="number" name="price" min="0" step="0.01" placeholder="Price" value="${rowData.price || ''}"></td>
+                <td><input type="number" name="quantity" min="0" value="${rowData.quantity || 1}"></td>
+                <td><input type="date" name="dateInstalled" value="${rowData.dateInstalled || ''}"></td>
+                <td>
+                    <div class="mileage-cell">
+                        <input type="number" name="mileage" min="0" placeholder="Mileage" value="${rowData.mileage || ''}">
+                        <select name="mileageUnit">
+                            <option value="km" ${rowData.mileageUnit === 'mi' ? '' : 'selected'}>km</option>
+                            <option value="mi" ${rowData.mileageUnit === 'mi' ? 'selected' : ''}>miles</option>
+                        </select>
+                    </div>
+                </td>
+                <td><input type="text" name="critical" placeholder="Critical" value="${rowData.critical || ''}"></td>
+                <td><button class="deleteRow">Delete</button></td>
+            `;
+
+            const inputs = tr.querySelectorAll('input, select');
+            inputs.forEach(input => input.addEventListener('input', saveTables));
+
+            tr.querySelector('.deleteRow').addEventListener('click', () => {
+                tr.remove();
+                saveTables();
+            });
+
+            tbody.appendChild(tr);
+            saveTables();
+        }
+
+        function createVehicleTable(name, rows = []) {
+            const container = document.getElementById('table-area');
+            const card = document.createElement('section');
+            card.className = 'vehicle-card';
+
+            const titleWrapper = document.createElement('div');
+            titleWrapper.className = 'vehicle-header';
+            const title = document.createElement('h2');
+            title.className = 'vehicle-title';
+            title.textContent = name;
+            titleWrapper.appendChild(title);
+
+            const table = document.createElement('table');
+            table.className = 'partsTable';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Part name</th>
+                        <th>Price</th>
+                        <th>Quantity</th>
+                        <th>Date Installed</th>
+                        <th>Mileage</th>
+                        <th>Critical</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+
+            const controls = document.createElement('div');
+            controls.className = 'table-controls';
+            const addRowBtn = document.createElement('button');
+            addRowBtn.textContent = 'Add row';
+            addRowBtn.addEventListener('click', () => createRow(table.querySelector('tbody')));
+            const deleteTableBtn = document.createElement('button');
+            deleteTableBtn.textContent = 'Delete table';
+            deleteTableBtn.className = 'deleteTableBtn';
+            deleteTableBtn.addEventListener('click', () => {
+                card.remove();
+                saveTables();
+            });
+            controls.appendChild(addRowBtn);
+            controls.appendChild(deleteTableBtn);
+
+            card.appendChild(titleWrapper);
+            card.appendChild(table);
+            card.appendChild(controls);
+            container.appendChild(card);
+
+            if (rows.length === 0) {
+                createRow(table.querySelector('tbody'));
+            } else {
+                rows.forEach(row => createRow(table.querySelector('tbody'), row));
+            }
+        }
+
+        function loadTables() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved) return;
+            try {
+                const tables = JSON.parse(saved);
+                if (!Array.isArray(tables)) return;
+                tables.forEach(tableData => {
+                    if (tableData && tableData.name) {
+                        createVehicleTable(tableData.name, tableData.rows || []);
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to load saved tables:', err);
+            }
+        }
+
+        document.getElementById('createTableBtn').addEventListener('click', function () {
+            const name = prompt('Enter name for the vehicle table:');
+            if (!name) return;
+            createVehicleTable(name);
+            saveTables();
+        });
+
+        loadTables();
+        </script>
+
+</body>
+</html>
