@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vehicle — PitStop</title>
+<link rel="icon" type="image/png" href="assets/icon-transparent.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/garage.css">
+<link rel="stylesheet" href="css/vehicle.css">
+<link rel="stylesheet" href="css/trip.css">
+</head>
+<body class="garage-page">
+
+<header class="site-header container">
+  <a class="brand" href="index.html">
+    <img src="assets/icon-transparent.png" alt="" width="34" height="38">
+    <span class="brand-name">PitStop</span>
+  </a>
+  <a href="garage.html" class="btn btn-primary btn-sm">&larr; Back to Garage</a>
+</header>
+
+<main class="container vehicle-main">
+
+  <!-- Vehicle summary header -->
+  <section class="vehicle-summary" id="vehicle-summary">
+    <!-- filled by vehicle.js -->
+  </section>
+
+  <!-- Trip / Odometer -->
+  <section class="trip-section">
+    <div class="trip-heading">
+      <h2>Add Distance</h2>
+      <span id="gps-support-note" class="trip-support-note" hidden>GPS isn&rsquo;t available in this browser &mdash; use manual entry below.</span>
+    </div>
+
+    <div class="trip-panels">
+      <!-- GPS panel -->
+      <div class="trip-panel">
+        <div class="trip-panel-header">
+          <h3>GPS Trip</h3>
+          <span id="gps-status-badge" class="gps-status-badge">Idle</span>
+        </div>
+        <p class="field-hint">Tracks while this tab stays open. Review the distance before it's added.</p>
+        <div id="gps-live-readout" class="gps-live-readout mono" hidden>0.00</div>
+        <button id="gps-toggle-btn" class="btn btn-primary">Start GPS Trip</button>
+      </div>
+
+      <!-- Manual panel -->
+      <div class="trip-panel">
+        <h3>Manual Entry</h3>
+        <p class="field-hint">Already know the distance? Add it directly &mdash; useful if GPS tracking isn't practical.</p>
+        <form id="manual-trip-form" class="manual-trip-form">
+          <div class="odo-input-group">
+            <input type="number" id="manual-trip-distance" placeholder="0" min="0.1" step="0.1" required>
+            <span class="unit-suffix mono" id="manual-trip-unit">km</span>
+          </div>
+          <input type="date" id="manual-trip-date">
+          <button type="submit" class="btn btn-ghost">Add to Odometer</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- GPS trip confirm -->
+    <div id="trip-confirm" class="trip-confirm" hidden>
+      <div class="trip-confirm-value">
+        <span>Trip complete:</span>
+        <input type="number" id="trip-confirm-distance" class="mono" min="0" step="0.01">
+        <span id="trip-confirm-unit" class="mono"></span>
+      </div>
+      <div class="trip-confirm-actions">
+        <button id="trip-discard-btn" class="btn btn-ghost">Discard</button>
+        <button id="trip-confirm-btn" class="btn btn-primary">Add to Odometer</button>
+      </div>
+    </div>
+
+    <!-- Recent trips -->
+    <div id="trip-log" class="trip-log"></div>
+  </section>
+
+  <div class="parts-heading">
+    <h2>Parts</h2>
+    <button id="add-part-btn" class="btn btn-primary">+ Add Part</button>
+  </div>
+
+  <!-- Empty state -->
+  <div id="parts-empty-state" class="empty-state" hidden>
+    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" aria-hidden="true">
+      <path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+    <h2>No parts tracked yet</h2>
+    <p>Add a part to start tracking when it's due for service.</p>
+    <button class="btn btn-primary" data-open-part-form>+ Add Part</button>
+  </div>
+
+  <!-- Parts list -->
+  <div id="parts-list" class="parts-list"></div>
+</main>
+
+<!-- Add / Edit Part modal -->
+<div id="part-modal" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="part-modal-title">
+    <div class="modal-header">
+      <h2 id="part-modal-title">Add Part</h2>
+      <button id="part-modal-close" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+
+    <form id="part-form" class="vehicle-form" autocomplete="off">
+      <input type="hidden" id="part-id" value="">
+
+      <div class="form-row">
+        <label for="part-name">Part name</label>
+        <input type="text" id="part-name" placeholder="e.g. Shell Advanced Engine oil, Bendix Brake pads" required autocomplete="off">
+      </div>
+
+      <div class="form-row form-row-split">
+        <div>
+          <label for="part-purchase-date">Purchase date</label>
+          <input type="date" id="part-purchase-date">
+        </div>
+        <div>
+          <label for="part-install-date">Install date</label>
+          <input type="date" id="part-install-date" required>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Maintenance schedule</label>
+        <div class="schedule-type-toggle" role="radiogroup" aria-label="Schedule type">
+          <button type="button" class="schedule-btn is-active" data-schedule="distance">By Distance</button>
+          <button type="button" class="schedule-btn" data-schedule="time">By Days</button>
+          <button type="button" class="schedule-btn" data-schedule="whichever">Whichever First</button>
+        </div>
+      </div>
+
+      <div class="form-row" id="interval-km-row">
+        <label for="part-interval-km">Service every</label>
+        <div class="odo-input-group">
+          <input type="number" id="part-interval-km" placeholder="10000" min="1" step="1">
+          <span class="unit-suffix mono" id="interval-km-unit">km</span>
+        </div>
+      </div>
+
+      <div class="form-row" id="interval-days-row" hidden>
+        <label for="part-interval-days">Service every</label>
+        <div class="odo-input-group">
+          <input type="number" id="part-interval-days" placeholder="180" min="1" step="1">
+          <span class="unit-suffix mono">days</span>
+        </div>
+      </div>
+
+      <p class="field-hint">Status is measured from this part's install date and the vehicle's odometer at that time.</p>
+
+      <div class="modal-actions">
+        <button type="button" id="delete-part-btn" class="btn-text btn-danger-text" hidden>Delete part</button>
+        <div class="modal-actions-right">
+          <button type="button" id="part-cancel-btn" class="btn btn-ghost">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Part</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="site-footer container">
+  <span>PitStop &mdash; vehicle maintenance tracker</span>
+  <span class="mono">v0.3 &middot; Module 3</span>
+</footer>
+
+<script src="js/storage.js"></script>
+<script src="js/vehicle.js"></script>
+</body>
+</html>
