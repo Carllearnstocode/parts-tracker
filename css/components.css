@@ -1,0 +1,209 @@
+/* ==========================================================================
+   PitStop — Components
+   ========================================================================== */
+
+/* ---- Header ---- */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: var(--space-6);
+  padding-inline: var(--space-6);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+}
+
+.brand img {
+  height: 34px;
+  width: auto;
+  display: block;
+}
+
+.brand-name {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ---- Theme toggle ---- */
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 52px;
+  height: 28px;
+  padding: 3px;
+  background: var(--bg-surface-raised);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 999px;
+  transition: background var(--transition-fast);
+}
+
+.theme-toggle:hover { border-color: var(--accent); }
+
+.theme-toggle__thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-contrast);
+  transition: transform var(--transition-base);
+  transform: translateX(0);
+}
+
+[data-theme='light'] .theme-toggle__thumb {
+  transform: translateX(24px);
+}
+
+.theme-toggle__thumb svg { width: 12px; height: 12px; }
+
+/* ---- Hero ---- */
+.hero {
+  position: relative;
+  min-height: min(100vh, 750px);
+  display: flex;
+  align-items: center;
+
+
+}
+
+.hero-gauge {
+  position: absolute;
+  right: -3%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(64vw, 820px);
+  height: auto;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.hero-gauge .gauge-track { stroke: var(--border-color); }
+.hero-gauge .gauge-sweep {
+  stroke: var(--accent);
+  stroke-dasharray: 754;
+  stroke-dashoffset: 330;
+}
+.hero-gauge .gauge-tick { stroke: var(--text-tertiary); }
+.hero-gauge .gauge-needle { stroke: var(--accent); }
+.hero-gauge .gauge-hub { fill: var(--accent); }
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+}
+
+.hero-eyebrow-readout {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-4);
+}
+
+.hero h1 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-6);
+}
+
+.hero p.lede {
+  font-size: var(--text-lg);
+  color: var(--text-secondary);
+  max-width: 46ch;
+  margin-bottom: var(--space-8);
+}
+
+.hero-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-8);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.hero-features li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.hero-features li::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  transform: translateY(-2px);
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: 600;
+  border: var(--border-width) solid transparent;
+  text-decoration: none;
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn-primary:hover { background: var(--pit-blue-light); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---- Footer ---- */
+.site-footer {
+  padding-block: var(--space-8);
+  padding-inline: var(--space-6);
+  border-top: var(--border-width) solid var(--border-color);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 860px) {
+  .hero-gauge {
+    right: -30%;
+    opacity: 0.35;
+  }
+  .hero { min-height: auto; padding-block: var(--space-12) var(--space-16); }
+}
+
+@media (max-width: 560px) {
+  .hero-gauge { display: none; }
+  .site-header { flex-wrap: wrap; gap: var(--space-4); }
+}
