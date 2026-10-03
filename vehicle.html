@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/garage.css">
 <link rel="stylesheet" href="css/vehicle.css">
 <link rel="stylesheet" href="css/trip.css">
+<link rel="stylesheet" href="css/dealership.css">
 </head>
 <body class="garage-page">
 
@@ -33,6 +34,16 @@
   <section class="vehicle-summary" id="vehicle-summary">
     <!-- filled by vehicle.js -->
   </section>
+
+  <div class="dealership-trigger-row">
+    <button id="find-dealership-btn" class="btn btn-ghost">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+        <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <circle cx="12" cy="9.5" r="2.4" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+      Find Dealership
+    </button>
+  </div>
 
   <!-- Trip / Odometer -->
   <section class="trip-section">
@@ -63,6 +74,7 @@
             <span class="unit-suffix mono" id="manual-trip-unit">km</span>
           </div>
           <input type="date" id="manual-trip-date">
+          <input type="text" id="manual-trip-destination" placeholder="Destination (optional)">
           <button type="submit" class="btn btn-ghost">Add to Odometer</button>
         </form>
       </div>
@@ -70,10 +82,16 @@
 
     <!-- GPS trip confirm -->
     <div id="trip-confirm" class="trip-confirm" hidden>
-      <div class="trip-confirm-value">
-        <span>Trip complete:</span>
-        <input type="number" id="trip-confirm-distance" class="mono" min="0" step="0.01">
-        <span id="trip-confirm-unit" class="mono"></span>
+      <div class="trip-confirm-main">
+        <div class="trip-confirm-value">
+          <span>Trip complete:</span>
+          <input type="number" id="trip-confirm-distance" class="mono" min="0" step="0.01">
+          <span id="trip-confirm-unit" class="mono"></span>
+        </div>
+        <div class="trip-confirm-destination">
+          <label for="trip-confirm-destination">Destination</label>
+          <input type="text" id="trip-confirm-destination" placeholder="Optional destination">
+        </div>
       </div>
       <div class="trip-confirm-actions">
         <button id="trip-discard-btn" class="btn btn-ghost">Discard</button>
@@ -82,7 +100,10 @@
     </div>
 
     <!-- Recent trips -->
-    <div id="trip-log" class="trip-log"></div>
+    <div class="trip-log-shell">
+      <button id="trip-log-toggle" class="trip-log-toggle" type="button" aria-expanded="false">Show trip history</button>
+      <div id="trip-log" class="trip-log" hidden></div>
+    </div>
   </section>
 
   <div class="parts-heading">
@@ -169,12 +190,41 @@
   </div>
 </div>
 
+<!-- Find Dealership modal -->
+<div id="dealership-modal" class="modal-overlay" hidden>
+  <div class="modal dealership-modal" role="dialog" aria-modal="true" aria-labelledby="dealership-modal-title">
+    <div class="modal-header">
+      <h2 id="dealership-modal-title">Find Dealership</h2>
+      <button id="dealership-modal-close" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+
+    <div id="dealership-search-panel" class="dealership-search-area">
+      <p class="field-hint">Search without a Google Cloud key &mdash; it opens in a floating map panel inside the app.</p>
+      <form id="dealership-search-form" class="dealership-search-form">
+        <input type="text" id="dealership-search-input" placeholder="e.g. Honda dealership">
+        <button type="submit" class="btn btn-primary">Search</button>
+      </form>
+      <p id="dealership-location-note" class="field-hint"></p>
+    </div>
+
+    <div id="dealership-map-panel" class="dealership-map-panel" hidden>
+      <p id="dealership-map-status" class="dealership-map-status field-hint"></p>
+      <div class="dealership-map-toolbar">
+        <button id="dealership-back-btn" class="btn btn-ghost btn-sm" type="button">Back to search</button>
+        <a id="dealership-open-tab-link" class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="#">Open in Google Maps</a>
+      </div>
+      <iframe id="dealership-map-frame" title="Google Maps dealership search" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
+  </div>
+</div>
+
 <footer class="site-footer container">
   <span>PitStop &mdash; vehicle maintenance tracker</span>
-  <span class="mono">v0.3 &middot; Module 3</span>
+  <span class="mono">v0.5 &middot; System</span>
 </footer>
 
 <script src="js/storage.js"></script>
 <script src="js/vehicle.js"></script>
+<script src="js/dealership.js"></script>
 </body>
 </html>

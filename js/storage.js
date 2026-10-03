@@ -192,13 +192,14 @@ const PitStopStorage = (() => {
      re-sorts what's due, with no stale flags to clean up. */
   function computePartStatus(part, vehicle) {
     const DUE_SOON_THRESHOLD = 0.85; // 85% of interval used
+    const baselineOdometerKm = getEffectiveBaselineOdometerKm(part, vehicle);
 
     let percentKm = null;
     let percentDays = null;
 
     if (part.scheduleType === 'distance' || part.scheduleType === 'whichever') {
       if (part.intervalKm) {
-        const kmSince = (vehicle.currentOdometerKm || 0) - (part.baselineOdometerKm || 0);
+        const kmSince = (vehicle.currentOdometerKm || 0) - baselineOdometerKm;
         percentKm = kmSince / part.intervalKm;
       }
     }
@@ -217,11 +218,12 @@ const PitStopStorage = (() => {
     if (percent >= 1) status = 'overdue';
     else if (percent >= DUE_SOON_THRESHOLD) status = 'due-soon';
 
+    const kmUsed = (vehicle.currentOdometerKm || 0) - baselineOdometerKm;
     return {
       status,
       percent: Math.min(percent, 1.5), // cap for progress-bar rendering
       kmRemaining: part.intervalKm != null
-        ? Math.round(part.intervalKm - ((vehicle.currentOdometerKm || 0) - (part.baselineOdometerKm || 0)))
+        ? Math.round(part.intervalKm - kmUsed)
         : null,
       daysRemaining: part.intervalDays != null
         ? Math.round(part.intervalDays - (Date.now() - new Date(part.baselineDate).getTime()) / (1000 * 60 * 60 * 24))
@@ -281,8 +283,9 @@ const PitStopStorage = (() => {
   }
 
   /* distanceKm: the trip distance already converted to km.
-     source: 'gps' | 'manual' */
-  function addTrip({ vehicleId, distanceKm, date, source }) {
+     source: 'gps' | 'manual'
+     destination: optional text label for where the trip went */
+  function addTrip({ vehicleId, distanceKm, date, source, destination = '' }) {
     const trips = getAllTrips();
     const trip = {
       id: 't_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -290,6 +293,7 @@ const PitStopStorage = (() => {
       distanceKm,
       date: date || new Date().toISOString().slice(0, 10),
       source,
+      destination: String(destination || '').trim(),
       createdAt: new Date().toISOString(),
     };
     trips.push(trip);
@@ -324,6 +328,29 @@ const PitStopStorage = (() => {
 
   function deleteTripsForVehicle(vehicleId) {
     saveAllTrips(getAllTrips().filter((t) => t.vehicleId !== vehicleId));
+  }
+
+  function getTripsSinceInstall(part, vehicle) {
+    if (!part.installDate) return [];
+    const installDate = new Date(part.installDate + 'T00:00:00');
+    return getTrips(vehicle.id).filter((trip) => {
+      if (!trip.date) return false;
+      return new Date(trip.date + 'T00:00:00') >= installDate;
+    });
+  }
+
+  function getEffectiveBaselineOdometerKm(part, vehicle) {
+    const currentOdometerKm = Number(vehicle.currentOdometerKm) || 0;
+    if (!part.installDate) return Number(part.baselineOdometerKm) || currentOdometerKm;
+
+    const tripsSinceInstall = getTripsSinceInstall(part, vehicle);
+    const distanceSinceInstallKm = tripsSinceInstall.reduce((sum, trip) => sum + (Number(trip.distanceKm) || 0), 0);
+
+    if (distanceSinceInstallKm > 0) {
+      return Math.max(0, currentOdometerKm - distanceSinceInstallKm);
+    }
+
+    return Number(part.baselineOdometerKm) || currentOdometerKm;
   }
 
   return {

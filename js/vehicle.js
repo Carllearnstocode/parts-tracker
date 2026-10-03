@@ -270,19 +270,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const manualForm = document.getElementById('manual-trip-form');
   const manualDistanceField = document.getElementById('manual-trip-distance');
   const manualDateField = document.getElementById('manual-trip-date');
+  const manualDestinationField = document.getElementById('manual-trip-destination');
   const manualUnitLabel = document.getElementById('manual-trip-unit');
 
   const tripConfirm = document.getElementById('trip-confirm');
   const tripConfirmDistance = document.getElementById('trip-confirm-distance');
+  const tripConfirmDestination = document.getElementById('trip-confirm-destination');
   const tripConfirmUnit = document.getElementById('trip-confirm-unit');
   const tripConfirmBtn = document.getElementById('trip-confirm-btn');
   const tripDiscardBtn = document.getElementById('trip-discard-btn');
 
   const tripLogEl = document.getElementById('trip-log');
+  const tripLogToggle = document.getElementById('trip-log-toggle');
+  let tripLogCollapsed = true;
 
-  manualUnitLabel.textContent = vehicle.odometerUnit;
-  tripConfirmUnit.textContent = vehicle.odometerUnit;
-  manualDateField.value = new Date().toISOString().slice(0, 10);
+  function setTripLogExpanded(expanded) {
+    tripLogCollapsed = !expanded;
+    tripLogEl.hidden = !expanded;
+    tripLogToggle.setAttribute('aria-expanded', String(expanded));
+    tripLogToggle.textContent = expanded ? 'Hide trip history' : 'Show trip history';
+  }
+
+  tripLogToggle.addEventListener('click', () => {
+    setTripLogExpanded(tripLogCollapsed);
+  });
+
+  setTripLogExpanded(false);
 
   /* ---- Refresh vehicle + dependent UI after the odometer changes ---- */
   function refreshAfterOdometerChange() {
@@ -296,11 +309,18 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---- Trip log ---- */
   function renderTripLog() {
     const trips = PitStopStorage.getTrips(vehicle.id);
+    const hasTrips = trips.length > 0;
+    tripLogToggle.hidden = !hasTrips;
+    tripLogEl.hidden = !hasTrips || tripLogCollapsed;
+    tripLogToggle.textContent = tripLogCollapsed ? 'Show trip history' : 'Hide trip history';
+    tripLogToggle.setAttribute('aria-expanded', String(!tripLogCollapsed));
     tripLogEl.innerHTML = trips.slice(0, 8).map((t) => {
       const displayDist = Math.round(PitStopStorage.fromKm(t.distanceKm, vehicle.odometerUnit) * 10) / 10;
+      const destination = t.destination ? escapeHtml(t.destination) : '—';
       return `
         <div class="trip-log-row">
           <span class="trip-log-date">${formatDate(t.date)}</span>
+          <span class="trip-log-destination" title="${destination === '—' ? 'No destination saved' : destination}">${destination}</span>
           <span class="trip-log-distance">${displayDist} ${vehicle.odometerUnit}</span>
           <span class="trip-log-source">${t.source}</span>
           <button class="trip-log-delete" data-delete-trip="${t.id}">Remove</button>
@@ -377,6 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gpsStatusBadge.classList.add('is-tracking');
     gpsToggleBtn.textContent = 'Stop GPS Trip';
     tripConfirm.hidden = true;
+    tripConfirmDestination.value = '';
 
     watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
       enableHighAccuracy: true,
@@ -419,14 +440,17 @@ document.addEventListener('DOMContentLoaded', () => {
       distanceKm: PitStopStorage.toKm(distanceInVehicleUnit, vehicle.odometerUnit),
       date: new Date().toISOString().slice(0, 10),
       source: 'gps',
+      destination: tripConfirmDestination.value.trim(),
     });
     tripConfirm.hidden = true;
+    tripConfirmDestination.value = '';
     gpsLiveReadout.hidden = true;
     refreshAfterOdometerChange();
   });
 
   tripDiscardBtn.addEventListener('click', () => {
     tripConfirm.hidden = true;
+    tripConfirmDestination.value = '';
     gpsLiveReadout.hidden = true;
     accumulatedKm = 0;
   });
@@ -441,6 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
       distanceKm: PitStopStorage.toKm(distance, vehicle.odometerUnit),
       date: manualDateField.value || new Date().toISOString().slice(0, 10),
       source: 'manual',
+      destination: manualDestinationField.value.trim(),
     });
     manualForm.reset();
     manualDateField.value = new Date().toISOString().slice(0, 10);
