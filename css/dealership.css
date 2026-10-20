@@ -5,10 +5,21 @@
 .dealership-trigger-row {
   display: flex;
   justify-content: flex-end;
+  margin-top: var(--space-4);
   margin-bottom: var(--space-8);
 }
 
+.dealership-trigger-row--bottom {
+  margin-top: var(--space-6);
+}
+
 .dealership-trigger-row .btn svg { color: var(--accent); }
+
+.dealership-trigger-row .btn:hover svg,
+.dealership-trigger-row .btn:focus-visible svg,
+.dealership-trigger-row .btn:active svg {
+  color: currentColor;
+}
 
 .dealership-modal {
   max-width: 680px;

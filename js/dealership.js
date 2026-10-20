@@ -1,8 +1,5 @@
 /* ==========================================================================
    PitStop — Dealership Finder (Module 5)
-   No API key or billing account needed: this opens a plain Google Maps
-   search in a new tab (https://www.google.com/maps/search/?api=1&query=...),
-   optionally biased toward the user's current location.
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,13 +23,55 @@ document.addEventListener('DOMContentLoaded', () => {
   const vehicle = vehicleId ? PitStopStorage.getVehicle(vehicleId) : null;
 
   let userCoords = null; // {lat, lng} if geolocation is available and granted
+  let popupWindow = null;
+  let popupWatcher = null;
+
+  function stopPopupWatcher() {
+    if (popupWatcher) {
+      clearInterval(popupWatcher);
+      popupWatcher = null;
+    }
+    popupWindow = null;
+  }
+
+  function showSearchPanel() {
+    searchPanel.hidden = false;
+    mapPanel.hidden = true;
+    mapStatus.textContent = '';
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    showSearchPanel();
+    stopPopupWatcher();
+    if (mapFrame) mapFrame.src = '';
+  }
+
+  function watchPopupWindow(win) {
+    if (!win) return;
+    popupWindow = win;
+
+    if (popupWatcher) clearInterval(popupWatcher);
+
+    popupWatcher = setInterval(() => {
+      try {
+        if (popupWindow && popupWindow.closed) {
+          closeModal();
+          return;
+        }
+      } catch (error) {
+        closeModal();
+        return;
+      }
+    }, 300);
+  }
 
   function requestLocation() {
     if (!('geolocation' in navigator)) {
       locationNote.textContent = 'Location unavailable in this browser — results will be general.';
       return;
     }
-    locationNote.textContent = 'Looking for your location\u2026';
+    locationNote.textContent = 'Looking for your location…';
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -45,20 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   }
 
-  function showSearchPanel() {
-    searchPanel.hidden = false;
-    mapPanel.hidden = true;
-    mapStatus.textContent = '';
-  }
-
-  function showMapPanel(url, statusText) {
-    searchPanel.hidden = true;
-    mapPanel.hidden = false;
-    mapStatus.textContent = statusText;
-    openTabLink.href = url;
-    if (mapFrame) mapFrame.src = '';
-  }
-
   function openModal() {
     modal.hidden = false;
     showSearchPanel();
@@ -66,12 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
     userCoords = null;
     requestLocation();
     searchInput.focus();
-  }
-
-  function closeModal() {
-    modal.hidden = true;
-    showSearchPanel();
-    if (mapFrame) mapFrame.src = '';
   }
 
   openBtn.addEventListener('click', openModal);
@@ -82,6 +101,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape' && !modal.hidden) closeModal();
   });
 
+  window.addEventListener('focus', () => {
+    if (popupWindow && popupWindow.closed) {
+      closeModal();
+    }
+  });
+
   searchForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const typed = searchInput.value.trim();
@@ -89,18 +114,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const query = userCoords ? `${base} near ${userCoords.lat},${userCoords.lng}` : base;
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
-    const popup = window.open(
-      url,
-      'pitstop-dealership-map',
-      'width=1200,height=820,left=120,top=80,noopener=yes,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no'
-    );
+    const popup = window.open(url, '_blank');
 
     if (popup) {
       popup.focus();
-      showMapPanel(url, 'Google Maps opened in a floating window. If it does not appear, use the button below.');
+      watchPopupWindow(popup);
+      closeModal();
       return;
     }
 
-    showMapPanel(url, 'Chrome blocked the floating map window. Use the button below to continue in Google Maps.');
+    locationNote.textContent = 'Pop-ups were blocked. Please allow pop-ups and try again.';
+    searchInput.focus();
   });
 });

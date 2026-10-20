@@ -25,7 +25,10 @@
     <img src="assets/icon-transparent.png" alt="" width="34" height="38">
     <span class="brand-name">PitStop</span>
   </a>
-  <a href="garage.html" class="btn btn-primary btn-sm">&larr; Back to Garage</a>
+  <a href="garage.html" class="btn btn-primary btn-sm">
+    <img src="assets/return.png" alt="" width="16" height="16" aria-hidden="true">
+    Back to Garage
+  </a>
 </header>
 
 <main class="container vehicle-main">
@@ -34,16 +37,6 @@
   <section class="vehicle-summary" id="vehicle-summary">
     <!-- filled by vehicle.js -->
   </section>
-
-  <div class="dealership-trigger-row">
-    <button id="find-dealership-btn" class="btn btn-ghost">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
-        <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-        <circle cx="12" cy="9.5" r="2.4" stroke="currentColor" stroke-width="1.6"/>
-      </svg>
-      Find Dealership
-    </button>
-  </div>
 
   <!-- Trip / Odometer -->
   <section class="trip-section">
@@ -123,6 +116,13 @@
 
   <!-- Parts list -->
   <div id="parts-list" class="parts-list"></div>
+
+  <div class="dealership-trigger-row dealership-trigger-row--bottom">
+    <button id="find-dealership-btn" class="btn btn-primary">
+      <img src="assets/pin.png" alt="" width="16" height="16" aria-hidden="true">
+      Find Dealership
+    </button>
+  </div>
 </main>
 
 <!-- Add / Edit Part modal -->
@@ -199,7 +199,6 @@
     </div>
 
     <div id="dealership-search-panel" class="dealership-search-area">
-      <p class="field-hint">Search without a Google Cloud key &mdash; it opens in a floating map panel inside the app.</p>
       <form id="dealership-search-form" class="dealership-search-form">
         <input type="text" id="dealership-search-input" placeholder="e.g. Honda dealership">
         <button type="submit" class="btn btn-primary">Search</button>

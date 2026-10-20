@@ -255,7 +255,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function attachVehicleAccent() {
+    const root = document.querySelector('.vehicle-summary');
+    if (!root) return;
+
+    const fallback = '#4fd1e8';
+    const setAccent = (color) => {
+      root.style.setProperty('--vehicle-accent', color);
+      root.style.setProperty('--vehicle-glow', `color-mix(in srgb, ${color} 38%, transparent)`);
+      root.style.setProperty('--light-soft', `color-mix(in srgb, ${color} 18%, transparent)`);
+      root.style.setProperty('--light-mid', `color-mix(in srgb, ${color} 28%, transparent)`);
+      root.style.setProperty('--light-hard', `color-mix(in srgb, ${color} 46%, transparent)`);
+    };
+
+    if (vehicle.photo) {
+      PitStopStorage.getVehicleAccentColor(vehicle, fallback).then((color) => setAccent(color)).catch(() => setAccent(fallback));
+    } else {
+      setAccent(fallback);
+    }
+  }
+
   renderSummary();
+  attachVehicleAccent();
   renderParts();
 
   /* =======================================================================

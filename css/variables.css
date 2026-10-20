@@ -82,3 +82,18 @@
 
   --shadow-color: rgba(20, 30, 40, 0.12);
 }
+
+/* ==========================================================================
+   Welcome-screen tokens (additive — nothing above was changed)
+   Used by the index page. Glows are built from the existing palette only.
+   ========================================================================== */
+:root {
+  --font-display: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-soft: cubic-bezier(0.55, 0, 0.9, 0.45);
+
+  --glow-accent: color-mix(in srgb, var(--gauge-cyan) 22%, transparent);
+  --glow-accent-strong: color-mix(in srgb, var(--gauge-cyan) 50%, transparent);
+  --hairline: color-mix(in srgb, var(--text-primary) 12%, transparent);
+}

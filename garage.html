@@ -33,14 +33,35 @@
     <button id="add-vehicle-btn" class="btn btn-primary">+ Add Vehicle</button>
   </div>
 
+  <!-- Live summary — filled by garage.js, hidden when there are no vehicles -->
+  <section id="garage-stats" class="garage-stats" aria-label="Garage summary" hidden>
+    <div class="stat">
+      <span class="stat-value mono" id="stat-vehicles">0</span>
+      <span class="stat-label">Vehicles</span>
+    </div>
+    <div class="stat">
+      <span class="stat-figure">
+        <span class="stat-value mono" id="stat-distance">0</span>
+        <span class="stat-unit mono">km</span>
+      </span>
+      <span class="stat-label">Combined odometer</span>
+    </div>
+    <div class="stat" id="stat-attention-wrap" data-tone="ok">
+      <span class="stat-value mono" id="stat-attention">0</span>
+      <span class="stat-label">Parts due or overdue</span>
+    </div>
+  </section>
+
   <!-- Empty state — shown when there are no vehicles yet -->
   <div id="empty-state" class="empty-state" hidden>
-    <svg viewBox="0 0 64 64" width="56" height="56" fill="none" aria-hidden="true">
-      <rect x="8" y="26" width="48" height="22" rx="4" stroke="currentColor" stroke-width="3"/>
-      <circle cx="20" cy="50" r="5" stroke="currentColor" stroke-width="3"/>
-      <circle cx="44" cy="50" r="5" stroke="currentColor" stroke-width="3"/>
-      <path d="M12 26 L18 14 H46 L52 26" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
-    </svg>
+    <div class="empty-glyph">
+      <svg viewBox="0 0 64 64" width="64" height="64" fill="none" aria-hidden="true">
+        <rect x="8" y="26" width="48" height="22" rx="4" stroke="currentColor" stroke-width="3"/>
+        <circle cx="20" cy="50" r="5" stroke="currentColor" stroke-width="3"/>
+        <circle cx="44" cy="50" r="5" stroke="currentColor" stroke-width="3"/>
+        <path d="M12 26 L18 14 H46 L52 26" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+      </svg>
+    </div>
     <h2>Your garage is empty</h2>
     <p>Add your first vehicle to start tracking its parts and maintenance.</p>
     <button class="btn btn-primary" data-open-form>+ Add Vehicle</button>
@@ -95,11 +116,11 @@
       </div>
 
       <div class="form-row">
-        <label>Starting odometer reading</label>
+        <label for="vehicle-odometer">Starting odometer reading</label>
         <p class="field-hint">Enter your vehicle's current reading — not 0. This becomes the baseline everything else builds on.</p>
         <div class="odo-input-group">
           <input type="number" id="vehicle-odometer" placeholder="45000" min="0" step="1" required>
-          <div class="unit-toggle" role="radiogroup" aria-label="Odometer unit">
+          <div class="unit-toggle" role="radiogroup" aria-label="Odometer unit" data-active="km">
             <button type="button" class="unit-btn is-active" data-unit="km" role="radio" aria-checked="true">km</button>
             <button type="button" class="unit-btn" data-unit="mi" role="radio" aria-checked="false">mi</button>
           </div>

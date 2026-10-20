@@ -353,6 +353,98 @@ const PitStopStorage = (() => {
     return Number(part.baselineOdometerKm) || currentOdometerKm;
   }
 
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b]
+      .map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  function getDominantColorFromImage(dataUrl, fallback = '#4fd1e8') {
+    return new Promise((resolve) => {
+      if (!dataUrl || !/^data:image\//.test(dataUrl)) {
+        resolve(fallback);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDim = 64;
+          const scale = Math.min(maxDim / Math.max(img.width, 1), maxDim / Math.max(img.height, 1), 1);
+          const width = Math.max(1, Math.round(img.width * scale));
+          const height = Math.max(1, Math.round(img.height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(fallback);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const { data } = ctx.getImageData(0, 0, width, height);
+          const buckets = new Map();
+
+          for (let i = 0; i < data.length; i += 4) {
+            const alpha = data[i + 3];
+            if (alpha < 128) continue;
+
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const brightness = (0.299 * r) + (0.587 * g) + (0.114 * b);
+            if (brightness < 18 || brightness > 248) continue;
+
+            const key = `${Math.round(r / 32) * 32},${Math.round(g / 32) * 32},${Math.round(b / 32) * 32}`;
+            const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+            bucket.count += 1;
+            bucket.r += r;
+            bucket.g += g;
+            bucket.b += b;
+            buckets.set(key, bucket);
+          }
+
+          if (buckets.size === 0) {
+            resolve(fallback);
+            return;
+          }
+
+          let bestBucket = null;
+          for (const bucket of buckets.values()) {
+            if (!bestBucket || bucket.count > bestBucket.count) bestBucket = bucket;
+          }
+
+          const color = bestBucket
+            ? rgbToHex(
+                Math.round(bestBucket.r / bestBucket.count),
+                Math.round(bestBucket.g / bestBucket.count),
+                Math.round(bestBucket.b / bestBucket.count)
+              )
+            : fallback;
+
+          resolve(color);
+        } catch (err) {
+          resolve(fallback);
+        }
+      };
+
+      img.onerror = () => resolve(fallback);
+      img.src = dataUrl;
+    });
+  }
+
+  function getVehicleAccentColor(vehicle, fallback = '#4fd1e8') {
+    if (!vehicle) return Promise.resolve(fallback);
+    return getDominantColorFromImage(vehicle.photo, fallback);
+  }
+
+  function getVehicleAccentColorFromDataUri(dataUrl, fallback = '#4fd1e8') {
+    return getDominantColorFromImage(dataUrl, fallback);
+  }
+
   return {
     toKm,
     fromKm,
@@ -375,5 +467,8 @@ const PitStopStorage = (() => {
     addTrip,
     deleteTrip,
     deleteTripsForVehicle,
+    getDominantColorFromImage,
+    getVehicleAccentColor,
+    getVehicleAccentColorFromDataUri,
   };
 })();
