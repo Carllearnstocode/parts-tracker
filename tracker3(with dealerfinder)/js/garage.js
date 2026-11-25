@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const statDistance = document.getElementById('stat-distance');
   const statAttention = document.getElementById('stat-attention');
   const statAttentionWrap = document.getElementById('stat-attention-wrap');
+  const attentionView = document.getElementById('attention-view');
+  const attentionItems = document.getElementById('attention-items');
+  const isAttentionView = new URLSearchParams(window.location.search).get('show') === 'attention';
 
   const modal = document.getElementById('vehicle-modal');
   const modalTitle = document.getElementById('modal-title');
@@ -116,6 +119,42 @@ document.addEventListener('DOMContentLoaded', () => {
     statAttentionWrap.dataset.tone = overdue ? 'overdue' : dueSoon ? 'due-soon' : 'ok';
   }
 
+  function renderAttentionItems(vehicles) {
+    const items = [];
+    vehicles.forEach((vehicle) => {
+      PitStopStorage.getParts(vehicle.id).forEach((part) => {
+        const result = PitStopStorage.computePartStatus(part, vehicle);
+        if (result.status === 'overdue' || result.status === 'due-soon') {
+          items.push({ vehicle, part, result });
+        }
+      });
+    });
+
+    items.sort((a, b) => {
+      const statusOrder = (a.result.status === 'overdue' ? 0 : 1) - (b.result.status === 'overdue' ? 0 : 1);
+      return statusOrder || b.result.percent - a.result.percent;
+    });
+
+    if (!items.length) {
+      attentionItems.innerHTML = '<p class="attention-empty">No parts are currently due or overdue.</p>';
+      return;
+    }
+
+    attentionItems.innerHTML = items.map(({ vehicle, part, result }) => {
+      const statusLabel = result.status === 'overdue' ? 'Overdue' : 'Due soon';
+      const targetUrl = `vehicle.html?id=${encodeURIComponent(vehicle.id)}#part-${encodeURIComponent(part.id)}`;
+      return `
+        <a class="attention-item" data-status="${result.status}" href="${targetUrl}">
+          <span class="attention-item-status">${statusLabel}</span>
+          <span class="attention-item-copy">
+            <strong>${escapeHtml(part.name)}</strong>
+            <span>on ${escapeHtml(vehicle.name)}</span>
+          </span>
+          <span class="attention-item-link">View part</span>
+        </a>
+      `;
+    }).join('');
+  }
 
   /* ---------------------------------------------------------------------
      Accent colour — dominant hue of the vehicle photo.
@@ -208,15 +247,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const vehicles = PitStopStorage.getVehicles();
     const hasVehicles = vehicles.length > 0;
 
-    addVehicleBtn.hidden = !hasVehicles;
-    emptyState.hidden = hasVehicles;
-    grid.hidden = !hasVehicles;
-    statsStrip.hidden = !hasVehicles;
+    addVehicleBtn.hidden = !hasVehicles || isAttentionView;
+    emptyState.hidden = hasVehicles || isAttentionView;
+    grid.hidden = !hasVehicles || isAttentionView;
+    statsStrip.hidden = !hasVehicles || isAttentionView;
+    attentionView.hidden = !isAttentionView;
     grid.innerHTML = '';
     activeCard = null;
 
     const summaries = vehicles.map(summarizeParts);
     if (hasVehicles) updateStats(vehicles, summaries);
+    if (isAttentionView) {
+      document.title = 'Parts needing attention — PitStop';
+      renderAttentionItems(vehicles);
+    }
 
     let enterIndex = 0;
     vehicles.forEach((v, idx) => {
@@ -269,6 +313,8 @@ document.addEventListener('DOMContentLoaded', () => {
     grid.querySelectorAll('[data-edit]').forEach((btn) => {
       btn.addEventListener('click', () => openModal(btn.dataset.edit));
     });
+
+    document.dispatchEvent(new CustomEvent('pitstop:attention-updated'));
   }
 
   /* ---------------------------------------------------------------------
@@ -276,9 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
      One delegated listener on the grid, rAF-throttled, so it survives
      every re-render of the cards.
      --------------------------------------------------------------------- */
-  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const lightsOn = () => finePointer.matches && !reducedMotion.matches;
+  const lightsOn = () => !reducedMotion.matches;
 
   const MAX_TILT = 7; // degrees
   const page = document.body;
@@ -296,19 +341,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!card) return;
     card.classList.remove('is-lit');
     ['--rx', '--ry', '--px', '--py'].forEach((p) => card.style.removeProperty(p));
+    const surface = card.querySelector('.vc-surface');
+    if (surface) ['--mx', '--my'].forEach((p) => surface.style.removeProperty(p));
   }
 
   function applyTilt() {
     tiltFrame = 0;
     if (!activeCard || !activeCard.isConnected || !activeRect || !lastPointer) return;
     const r = activeRect;
+    const surface = activeCard.querySelector('.vc-surface');
+    const lightRect = surface.getBoundingClientRect();
     const px = clamp01((lastPointer.clientX - r.left) / r.width);
     const py = clamp01((lastPointer.clientY - r.top) / r.height);
     const s = activeCard.style;
     s.setProperty('--px', px.toFixed(3));
     s.setProperty('--py', py.toFixed(3));
-    s.setProperty('--mx', `${(px * r.width).toFixed(1)}px`);
-    s.setProperty('--my', `${(py * r.height).toFixed(1)}px`);
+    surface.style.setProperty('--mx', `${(lastPointer.clientX - lightRect.left).toFixed(1)}px`);
+    surface.style.setProperty('--my', `${(lastPointer.clientY - lightRect.top).toFixed(1)}px`);
     s.setProperty('--ry', ((px - 0.5) * 2 * MAX_TILT).toFixed(2));
     s.setProperty('--rx', ((0.5 - py) * 2 * MAX_TILT).toFixed(2));
   }
@@ -347,10 +396,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.pointerType !== 'mouse' || !lightsOn()) return;
     moveAmbient(e);
     moveButtonLight(e);
-  });
-
-  grid.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' || !lightsOn()) return;
     const card = e.target.closest('.vehicle-card');
     if (card !== activeCard) {
       releaseCard(activeCard);
@@ -361,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!card) return;
     lastPointer = e;
     if (!tiltFrame) tiltFrame = requestAnimationFrame(applyTilt);
-  });
+  }, true);
 
   grid.addEventListener('pointerleave', () => {
     releaseCard(activeCard);

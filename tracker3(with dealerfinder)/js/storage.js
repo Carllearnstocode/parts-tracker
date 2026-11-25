@@ -1,14 +1,87 @@
 /* ==========================================================================
    PitStop — Storage
-   Shared localStorage data layer. Canonical odometer unit is always km
-   internally; convert only at display/input time. Every module (garage,
-   parts, trips) reads/writes through this file so the data shape stays
-   consistent in one place.
+   Shared localStorage data layer + Service Worker / Web Push helpers.
+   Canonical odometer unit is always km internally; convert only at
+   display/input time.
    ========================================================================== */
 
 const PitStopStorage = (() => {
   const VEHICLES_KEY = 'pitstop-vehicles';
+  const PARTS_KEY = 'pitstop-parts';
+  const TRIPS_KEY = 'pitstop-trips';
+  const NOTIF_FLAG_KEY = 'pitstop-notif-requested';
+  const NOTIF_LAST_SENT_KEY = 'pitstop-overdue-last-notified';
+  const PUSH_SUB_KEY = 'pitstop-push-subscription';
   const KM_PER_MILE = 1.60934;
+
+  // Replace with your Web Push server's base64url VAPID public key if using a push backend.
+  const PUSH_PUBLIC_VAPID_KEY = '';
+
+  let swRegistrationPromise = null;
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  /* ---- Service Worker & Web Push ---- */
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+    if (!swRegistrationPromise) {
+      swRegistrationPromise = navigator.serviceWorker
+        .register('./sw.js')
+        .catch((err) => {
+          console.warn('PitStop: service worker registration failed', err);
+          return null;
+        });
+    }
+    return swRegistrationPromise;
+  }
+
+  async function subscribeToWebPush() {
+    if (!PUSH_PUBLIC_VAPID_KEY) return null;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+    if (getNotificationPermissionState() !== 'granted') return null;
+
+    try {
+      const reg = await registerServiceWorker();
+      if (!reg || !reg.pushManager) return null;
+
+      let subscription = await reg.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_VAPID_KEY),
+        });
+      }
+
+      try {
+        localStorage.setItem(PUSH_SUB_KEY, JSON.stringify(subscription.toJSON()));
+      } catch (_) {
+        // Ignore storage errors
+      }
+
+      return subscription;
+    } catch (err) {
+      console.warn('PitStop: web push subscription failed', err);
+      return null;
+    }
+  }
+
+  function getSavedPushSubscription() {
+    try {
+      const raw = localStorage.getItem(PUSH_SUB_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /* ---- Unit conversion ---- */
   function toKm(value, unit) {
@@ -75,14 +148,11 @@ const PitStopStorage = (() => {
   function deleteVehicle(id) {
     const vehicles = getVehicles().filter((v) => v.id !== id);
     saveVehicles(vehicles);
-    deletePartsForVehicle(id); // cascade — no orphaned parts left behind
-    deleteTripsForVehicle(id); // cascade — no orphaned trips left behind
+    deletePartsForVehicle(id);
+    deleteTripsForVehicle(id);
   }
 
-  /* ---- Photo compression ----
-     Resizes to a max dimension and re-encodes as JPEG before returning a
-     base64 data URL, so a full-resolution phone photo doesn't quietly eat
-     through localStorage's ~5-10MB budget across several vehicles. */
+  /* ---- Photo compression ---- */
   function compressPhoto(file, maxDimension = 800, quality = 0.75) {
     return new Promise((resolve, reject) => {
       if (!file || !file.type.startsWith('image/')) {
@@ -119,8 +189,6 @@ const PitStopStorage = (() => {
   }
 
   /* ---- Parts CRUD ---- */
-  const PARTS_KEY = 'pitstop-parts';
-
   function getAllParts() {
     try {
       const raw = localStorage.getItem(PARTS_KEY);
@@ -157,6 +225,7 @@ const PitStopStorage = (() => {
       name: data.name,
       purchaseDate: data.purchaseDate || null,
       installDate: data.installDate || null,
+      photo: data.photo || null,
       scheduleType: data.scheduleType, // 'distance' | 'time' | 'whichever'
       intervalKm: data.intervalKm || null,
       intervalDays: data.intervalDays || null,
@@ -186,13 +255,19 @@ const PitStopStorage = (() => {
     saveAllParts(getAllParts().filter((p) => p.vehicleId !== vehicleId));
   }
 
-  /* ---- Status computation ----
-     Always computed live from the vehicle's current odometer + today's
-     date, never stored — so editing an interval or the odometer instantly
-     re-sorts what's due, with no stale flags to clean up. */
+  function parseLocalDateMs(dateStr) {
+    if (!dateStr) return Date.now();
+    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? `${dateStr}T00:00:00` : dateStr;
+    const ms = new Date(normalized).getTime();
+    return Number.isNaN(ms) ? Date.now() : ms;
+  }
+
+  /* ---- Status computation (90% = due-soon, 100%+ = overdue) ---- */
   function computePartStatus(part, vehicle) {
-    const DUE_SOON_THRESHOLD = 0.85; // 85% of interval used
+    const DUE_SOON_THRESHOLD = 0.9; // 90% of distance or days limit
     const baselineOdometerKm = getEffectiveBaselineOdometerKm(part, vehicle);
+    const nowMs = Date.now();
+    const baselineMs = parseLocalDateMs(part.baselineDate || part.installDate);
 
     let percentKm = null;
     let percentDays = null;
@@ -205,8 +280,7 @@ const PitStopStorage = (() => {
     }
     if (part.scheduleType === 'time' || part.scheduleType === 'whichever') {
       if (part.intervalDays) {
-        const msSince = Date.now() - new Date(part.baselineDate).getTime();
-        const daysSince = msSince / (1000 * 60 * 60 * 24);
+        const daysSince = (nowMs - baselineMs) / (1000 * 60 * 60 * 24);
         percentDays = daysSince / part.intervalDays;
       }
     }
@@ -221,41 +295,178 @@ const PitStopStorage = (() => {
     const kmUsed = (vehicle.currentOdometerKm || 0) - baselineOdometerKm;
     return {
       status,
-      percent: Math.min(percent, 1.5), // cap for progress-bar rendering
+      percent: Math.min(percent, 1.5),
       kmRemaining: part.intervalKm != null
         ? Math.round(part.intervalKm - kmUsed)
         : null,
       daysRemaining: part.intervalDays != null
-        ? Math.round(part.intervalDays - (Date.now() - new Date(part.baselineDate).getTime()) / (1000 * 60 * 60 * 24))
+        ? Math.round(part.intervalDays - (nowMs - baselineMs) / (1000 * 60 * 60 * 24))
         : null,
     };
   }
 
-  /* ---- Notification permission ----
-     Requested once, the first time the user saves a part with a schedule
-     attached — not on page load. */
-  const NOTIF_FLAG_KEY = 'pitstop-notif-requested';
+  /* ---- Notification permission ---- */
+  function getNotificationPermissionState() {
+    if (!('Notification' in window)) return 'unsupported';
+    return Notification.permission;
+  }
+
+  async function requestNotificationPermission() {
+    if (!('Notification' in window)) return 'unsupported';
+    await registerServiceWorker();
+    if (Notification.permission !== 'default') {
+      if (Notification.permission === 'granted') await subscribeToWebPush();
+      return Notification.permission;
+    }
+
+    try {
+      localStorage.setItem(NOTIF_FLAG_KEY, '1');
+    } catch (_) {
+      // Ignore storage errors
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      await subscribeToWebPush();
+    }
+    return permission;
+  }
 
   function maybeRequestNotificationPermission() {
-    if (!('Notification' in window)) return;
-    try {
-      if (localStorage.getItem(NOTIF_FLAG_KEY)) return;
-      localStorage.setItem(NOTIF_FLAG_KEY, '1');
-    } catch (err) {
-      /* localStorage unavailable — ask anyway, just won't remember for next time */
-    }
-    if (Notification.permission === 'default') {
-      Notification.requestPermission();
+    if (getNotificationPermissionState() === 'default') {
+      requestNotificationPermission();
     }
   }
 
-  /* ---- Trips ----
-     A trip is a log entry (date, distance, source) that also nudges the
-     vehicle's currentOdometerKm forward. Kept separate from the odometer
-     itself so there's an audit trail — useful for spotting GPS drift and
-     for the manual-entry fallback when GPS tracking isn't practical. */
-  const TRIPS_KEY = 'pitstop-trips';
+  async function dispatchSystemNotification(title, body, targetUrl) {
+    const options = {
+      body,
+      icon: 'assets/icon-transparent.png',
+      badge: 'assets/icon-transparent.png',
+      tag: 'pitstop-maintenance-alerts',
+      silent: false,
+      renotify: true,
+      data: { url: targetUrl },
+    };
 
+    try {
+      const reg = await registerServiceWorker();
+      if (reg && typeof reg.showNotification === 'function') {
+        await reg.showNotification(title, options);
+        return;
+      }
+    } catch (_) {
+      // Fall back to window Notification constructor
+    }
+
+    const notification = new Notification(title, options);
+    notification.onclick = () => {
+      window.focus();
+      window.location.href = targetUrl;
+      notification.close();
+    };
+  }
+
+  function sendOverdueNotifications(force = false) {
+    registerServiceWorker();
+
+    const alerts = [];
+    getVehicles().forEach((vehicle) => {
+      getParts(vehicle.id).forEach((part) => {
+        const result = computePartStatus(part, vehicle);
+        if (result.status === 'overdue' || result.status === 'due-soon') {
+          alerts.push({ vehicle, part, status: result.status, result });
+        }
+      });
+    });
+
+    document.dispatchEvent(new CustomEvent('pitstop:attention-updated'));
+    if (!alerts.length) return [];
+
+    alerts.sort((a, b) => (a.status === 'overdue' ? -1 : 1) - (b.status === 'overdue' ? -1 : 1));
+
+    const signatureItems = alerts
+      .map(({ vehicle, part, status }) => `${vehicle.id}:${part.id}:${status}`)
+      .sort()
+      .join('|');
+    const today = new Date().toISOString().slice(0, 10);
+    const signature = `${today}|${signatureItems}`;
+
+    let lastSent = '';
+    try {
+      lastSent = localStorage.getItem(NOTIF_LAST_SENT_KEY) || '';
+    } catch (_) {
+      // Ignore storage errors
+    }
+
+    if (!force && lastSent === signature) return alerts;
+
+    const overdueCount = alerts.filter((a) => a.status === 'overdue').length;
+    const dueSoonCount = alerts.filter((a) => a.status === 'due-soon').length;
+
+    let title = 'Maintenance attention needed';
+    if (overdueCount && dueSoonCount) {
+      title = `${overdueCount} overdue, ${dueSoonCount} at 90%+ limit`;
+    } else if (overdueCount) {
+      title = overdueCount === 1 ? 'One maintenance part is overdue' : `${overdueCount} maintenance parts are overdue`;
+    } else {
+      title = dueSoonCount === 1 ? 'One part reached 90% of its limit' : `${dueSoonCount} parts reached 90% of their limit`;
+    }
+
+    const first = alerts[0];
+    const reason = first.status === 'overdue' ? 'is overdue' : 'is at 90%+ of its service limit';
+    const body = alerts.length === 1
+      ? `${first.part.name} on ${first.vehicle.name} ${reason}. Tap to review all.`
+      : `First up: ${first.part.name} on ${first.vehicle.name} (${first.status === 'overdue' ? 'overdue' : 'due soon'}). Tap to review all.`;
+
+    document.dispatchEvent(new CustomEvent('pitstop:overdue', {
+      detail: {
+        title,
+        body,
+        hasOverdue: overdueCount > 0,
+        alerts: alerts.map(({ vehicle, part, status }) => ({
+          vehicleId: vehicle.id,
+          vehicleName: vehicle.name,
+          partName: part.name,
+          status,
+        })),
+      },
+    }));
+
+    if (getNotificationPermissionState() === 'granted') {
+      const targetUrl = new URL('garage.html?show=attention', window.location.href).href;
+      dispatchSystemNotification(title, body, targetUrl).catch((err) => {
+        console.warn('PitStop: notification could not be sent.', err);
+      });
+    }
+
+    try {
+      localStorage.setItem(NOTIF_LAST_SENT_KEY, signature);
+    } catch (_) {
+      // Ignore storage errors
+    }
+
+    return alerts;
+  }
+
+  function startOverdueNotificationChecks(intervalMinutes = 15) {
+    registerServiceWorker().then(() => {
+      if (getNotificationPermissionState() === 'granted') {
+        subscribeToWebPush();
+      }
+      sendOverdueNotifications();
+    });
+
+    const intervalId = window.setInterval(sendOverdueNotifications, intervalMinutes * 60 * 1000);
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) sendOverdueNotifications();
+    });
+
+    return intervalId;
+  }
+
+  /* ---- Trips ---- */
   function getAllTrips() {
     try {
       const raw = localStorage.getItem(TRIPS_KEY);
@@ -282,9 +493,6 @@ const PitStopStorage = (() => {
       .sort((a, b) => new Date(b.date) - new Date(a.date) || b.createdAt.localeCompare(a.createdAt));
   }
 
-  /* distanceKm: the trip distance already converted to km.
-     source: 'gps' | 'manual'
-     destination: optional text label for where the trip went */
   function addTrip({ vehicleId, distanceKm, date, source, destination = '' }) {
     const trips = getAllTrips();
     const trip = {
@@ -299,8 +507,6 @@ const PitStopStorage = (() => {
     trips.push(trip);
     saveAllTrips(trips);
 
-    // Applying the trip is what actually moves the odometer — every part's
-    // live status recalculates the moment this changes.
     const vehicle = getVehicle(vehicleId);
     if (vehicle) {
       updateVehicle(vehicleId, { currentOdometerKm: (vehicle.currentOdometerKm || 0) + distanceKm });
@@ -315,9 +521,6 @@ const PitStopStorage = (() => {
     if (!trip) return;
     saveAllTrips(trips.filter((t) => t.id !== id));
 
-    // Deleting a trip reverses its effect on the odometer too, so the two
-    // stay consistent. If the odometer was edited directly since, this can
-    // drift — acceptable trade-off for a school project's scope.
     const vehicle = getVehicle(trip.vehicleId);
     if (vehicle) {
       updateVehicle(trip.vehicleId, {
@@ -341,6 +544,11 @@ const PitStopStorage = (() => {
 
   function getEffectiveBaselineOdometerKm(part, vehicle) {
     const currentOdometerKm = Number(vehicle.currentOdometerKm) || 0;
+    const recordedBaseline = Number(part.baselineOdometerKm);
+    if (part.baselineOdometerKm != null && Number.isFinite(recordedBaseline)) {
+      return recordedBaseline;
+    }
+
     if (!part.installDate) return Number(part.baselineOdometerKm) || currentOdometerKm;
 
     const tripsSinceInstall = getTripsSinceInstall(part, vehicle);
@@ -462,7 +670,14 @@ const PitStopStorage = (() => {
     deletePart,
     deletePartsForVehicle,
     computePartStatus,
+    registerServiceWorker,
+    subscribeToWebPush,
+    getSavedPushSubscription,
     maybeRequestNotificationPermission,
+    getNotificationPermissionState,
+    requestNotificationPermission,
+    sendOverdueNotifications,
+    startOverdueNotificationChecks,
     getTrips,
     addTrip,
     deleteTrip,
