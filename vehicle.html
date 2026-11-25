@@ -42,25 +42,73 @@
   <section class="trip-section">
     <div class="trip-heading">
       <h2>Add Distance</h2>
-      <span id="gps-support-note" class="trip-support-note" hidden>GPS isn&rsquo;t available in this browser &mdash; use manual entry below.</span>
     </div>
 
     <div class="trip-panels">
-      <!-- GPS panel -->
-      <div class="trip-panel">
-        <div class="trip-panel-header">
-          <h3>GPS Trip</h3>
-          <span id="gps-status-badge" class="gps-status-badge">Idle</span>
+      <article class="trip-action-card trip-action-card--gps">
+        <div class="trip-action-visual"><img src="assets/gps.jpg" alt="" aria-hidden="true"><span class="trip-visual-label">ROUTE TELEMETRY</span></div>
+        <div class="trip-action-body">
+          <div class="trip-action-copy">
+            <div class="trip-action-title">
+              <h3>GPS Trip</h3>
+              <span id="gps-card-status" class="gps-status-badge">Idle</span>
+            </div>
+            <p>Track distance as you drive. Keep this tab open while your trip is running.</p>
+          </div>
+          <button id="open-gps-modal" type="button" class="btn btn-primary">Open GPS Trip</button>
+        </div>
+      </article>
+
+      <article class="trip-action-card trip-action-card--manual">
+        <div class="trip-action-visual"><img src="assets/manual-type.jpg" alt="" aria-hidden="true"><span class="trip-visual-label">ODO LOG</span></div>
+        <div class="trip-action-body">
+          <div class="trip-action-copy">
+            <h3>Manual Entry</h3>
+            <p>Log a distance you already know, with an optional date and destination.</p>
+          </div>
+          <button id="open-manual-modal" type="button" class="btn btn-primary">Enter Distance</button>
+        </div>
+      </article>
+    </div>
+
+    <div id="gps-trip-modal" class="modal-overlay trip-dialog-overlay" hidden>
+      <div class="modal trip-dialog" role="dialog" aria-modal="true" aria-labelledby="gps-trip-title">
+        <div class="modal-header">
+          <h2 id="gps-trip-title">GPS Trip</h2>
+          <button id="gps-trip-close" class="modal-close" type="button" aria-label="Close GPS trip">&times;</button>
         </div>
         <p class="field-hint">Tracks while this tab stays open. Review the distance before it's added.</p>
+        <p id="gps-support-note" class="trip-support-note" hidden>GPS isn&rsquo;t available in this browser &mdash; use manual entry instead.</p>
+        <div class="trip-dialog-status"><span id="gps-status-badge" class="gps-status-badge">Idle</span></div>
         <div id="gps-live-readout" class="gps-live-readout mono" hidden>0.00</div>
-        <button id="gps-toggle-btn" class="btn btn-primary">Start GPS Trip</button>
+        <button id="gps-toggle-btn" type="button" class="btn btn-primary">Start GPS Trip</button>
+        <div id="trip-confirm" class="trip-confirm" hidden>
+          <div class="trip-confirm-main">
+            <div class="trip-confirm-value">
+              <span>Trip complete:</span>
+              <input type="number" id="trip-confirm-distance" class="mono" min="0" step="0.01">
+              <span id="trip-confirm-unit" class="mono"></span>
+            </div>
+            <div class="trip-confirm-destination">
+              <label for="trip-confirm-destination">Destination</label>
+              <input type="text" id="trip-confirm-destination" placeholder="Optional destination">
+            </div>
+          </div>
+          <div class="trip-confirm-actions">
+            <button id="trip-discard-btn" class="btn btn-ghost" type="button">Discard</button>
+            <button id="trip-confirm-btn" class="btn btn-primary" type="button">Add to Odometer</button>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <!-- Manual panel -->
-      <div class="trip-panel">
-        <h3>Manual Entry</h3>
-        <p class="field-hint">Already know the distance? Add it directly &mdash; useful if GPS tracking isn't practical.</p>
+    <div id="manual-trip-modal" class="modal-overlay trip-dialog-overlay" hidden>
+      <div class="modal trip-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-trip-title">
+        <div class="modal-header">
+          <h2 id="manual-trip-title">Manual Entry</h2>
+          <button id="manual-trip-close" class="modal-close" type="button" aria-label="Close manual entry">&times;</button>
+        </div>
+        <p class="field-hint">Enter the distance and optionally add when and where the trip happened.</p>
         <form id="manual-trip-form" class="manual-trip-form">
           <div class="odo-input-group">
             <input type="number" id="manual-trip-distance" placeholder="0" min="0.1" step="0.1" required>
@@ -68,27 +116,8 @@
           </div>
           <input type="date" id="manual-trip-date">
           <input type="text" id="manual-trip-destination" placeholder="Destination (optional)">
-          <button type="submit" class="btn btn-ghost">Add to Odometer</button>
+          <button type="submit" class="btn btn-primary">Add to Odometer</button>
         </form>
-      </div>
-    </div>
-
-    <!-- GPS trip confirm -->
-    <div id="trip-confirm" class="trip-confirm" hidden>
-      <div class="trip-confirm-main">
-        <div class="trip-confirm-value">
-          <span>Trip complete:</span>
-          <input type="number" id="trip-confirm-distance" class="mono" min="0" step="0.01">
-          <span id="trip-confirm-unit" class="mono"></span>
-        </div>
-        <div class="trip-confirm-destination">
-          <label for="trip-confirm-destination">Destination</label>
-          <input type="text" id="trip-confirm-destination" placeholder="Optional destination">
-        </div>
-      </div>
-      <div class="trip-confirm-actions">
-        <button id="trip-discard-btn" class="btn btn-ghost">Discard</button>
-        <button id="trip-confirm-btn" class="btn btn-primary">Add to Odometer</button>
       </div>
     </div>
 
@@ -101,7 +130,11 @@
 
   <div class="parts-heading">
     <h2>Parts</h2>
-    <button id="add-part-btn" class="btn btn-primary">+ Add Part</button>
+    <div class="parts-heading-actions">
+      <button id="alert-sound-toggle" class="btn btn-ghost btn-sm" type="button" aria-pressed="true" title="Toggle maintenance alert chimes while this page is open and visible">Sound: On</button>
+      <button id="notification-enable-btn" class="btn btn-ghost btn-sm notification-enable-btn" type="button">Enable maintenance alerts</button>
+      <button id="add-part-btn" class="btn btn-primary">+ Add Part</button>
+    </div>
   </div>
 
   <!-- Empty state -->
@@ -118,12 +151,25 @@
   <div id="parts-list" class="parts-list"></div>
 
   <div class="dealership-trigger-row dealership-trigger-row--bottom">
+    <div class="dealership-question">
+      <span class="dealership-question-label">Looking for parts?</span>
+      <span class="dealership-question-hint">Find a dealership near you.</span>
+    </div>
     <button id="find-dealership-btn" class="btn btn-primary">
       <img src="assets/pin.png" alt="" width="16" height="16" aria-hidden="true">
       Find Dealership
     </button>
   </div>
 </main>
+
+<div id="overdue-toast" class="overdue-toast" role="alert" aria-live="assertive" hidden>
+  <div class="overdue-toast-icon" aria-hidden="true">!</div>
+  <div class="overdue-toast-copy">
+    <strong id="overdue-toast-title">Maintenance alert</strong>
+    <span id="overdue-toast-body">A part needs attention.</span>
+  </div>
+  <button id="overdue-toast-close" type="button" aria-label="Dismiss maintenance alert">&times;</button>
+</div>
 
 <!-- Add / Edit Part modal -->
 <div id="part-modal" class="modal-overlay" hidden>
@@ -135,6 +181,22 @@
 
     <form id="part-form" class="vehicle-form" autocomplete="off">
       <input type="hidden" id="part-id" value="">
+
+      <div class="photo-field part-photo-field">
+        <div id="part-photo-preview" class="photo-preview part-photo-preview">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" aria-hidden="true">
+            <path d="M4 7h3l2-3h6l2 3h3v12H4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+        </div>
+        <div class="photo-field-controls">
+          <label for="part-photo-input" class="btn btn-ghost btn-sm">
+            <span id="part-photo-label">Upload photo</span>
+          </label>
+          <input type="file" id="part-photo-input" accept="image/*" class="visually-hidden">
+          <button type="button" id="part-photo-remove" class="btn-text" hidden>Remove photo</button>
+        </div>
+      </div>
 
       <div class="form-row">
         <label for="part-name">Part name</label>
@@ -219,10 +281,11 @@
 
 <footer class="site-footer container">
   <span>PitStop &mdash; vehicle maintenance tracker</span>
-  <span class="mono">v0.5 &middot; System</span>
+  <span class="mono">v0.5.0 &middot; Local</span>
 </footer>
 
 <script src="js/storage.js"></script>
+<script src="js/maintenance-alerts.js"></script>
 <script src="js/vehicle.js"></script>
 <script src="js/dealership.js"></script>
 </body>

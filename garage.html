@@ -22,6 +22,7 @@
     <img src="assets/icon-transparent.png" alt="" width="34" height="38">
     <span class="brand-name">PitStop</span>
   </a>
+  <button id="alert-sound-toggle" class="btn btn-ghost btn-sm" type="button" aria-pressed="true" title="Toggle maintenance alert chimes while this page is open and visible">Sound: On</button>
 </header>
 
 <main class="container garage-main">
@@ -50,6 +51,17 @@
       <span class="stat-value mono" id="stat-attention">0</span>
       <span class="stat-label">Parts due or overdue</span>
     </div>
+  </section>
+
+  <section id="attention-view" class="attention-view" aria-labelledby="attention-title" hidden>
+    <div class="attention-view-header">
+      <div>
+        <h2 id="attention-title">Parts needing attention</h2>
+        <p>Select a part to open it in your garage.</p>
+      </div>
+      <a class="btn btn-ghost btn-sm" href="garage.html">Back to Garage</a>
+    </div>
+    <div id="attention-items" class="attention-items"></div>
   </section>
 
   <!-- Empty state — shown when there are no vehicles yet -->
@@ -140,10 +152,11 @@
 
 <footer class="site-footer container">
   <span>PitStop &mdash; vehicle maintenance tracker</span>
-  <span class="mono">v0.2 &middot; System</span>
+  <span class="mono">v0.5.0 &middot; Local</span>
 </footer>
 
 <script src="js/storage.js"></script>
+<script src="js/maintenance-alerts.js"></script>
 <script src="js/garage.js"></script>
 </body>
 </html>
