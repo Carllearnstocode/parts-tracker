@@ -185,7 +185,7 @@ button {
   font-size: var(--text-lg);
   line-height: 1.6;
   color: var(--text-secondary);
-  max-width: 46ch;
+  max-width: 40ch;
   margin-bottom: var(--space-8);
   text-wrap: pretty;
 }
